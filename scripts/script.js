@@ -13,6 +13,7 @@ const Scene = require('Scene');
 const Animation = require('Animation');
 const Time = require('Time');
 const FaceTracking = require('FaceTracking');
+const Reactive = require('Reactive');
 
 
 //  Popengine wrapper
@@ -20,6 +21,11 @@ var Pop = {}
 Pop.Debug = Diagnostics.log;
 
 var Math = {};
+Math.PI = Math.PI || 3.141592653589793;
+
+Math.max = function(a,b)	{	return (a>b) ? a : b;	}
+Math.min = function(a,b)	{	return (a<b) ? a : b;	}
+
 Math.Add2 = function(a,b)
 {
 	let x = a[0] + b[0];
@@ -27,6 +33,33 @@ Math.Add2 = function(a,b)
 	return [x,y];
 }
 
+Math.RadToDeg = function(Radians)
+{
+	return Radians * (180 / Math.PI);
+}
+
+Math.clamp = function(min, max,Value)
+{
+	return Math.min( Math.max(Value, min), max);
+}
+
+Math.range = function(Min,Max,Value)
+{
+	return (Max==Min) ? 0 : (Value-Min) / (Max-Min);
+}
+Math.Range = Math.range;
+
+Math.rangeClamped = function(Min,Max,Value)
+{
+	return Math.clamp( 0, 1, Math.range( Min, Max, Value ) );
+}
+Math.RangeClamped = Math.rangeClamped;
+
+Math.lerp = function(Min,Max,Time)
+{
+	return Min + (( Max - Min ) * Time);
+}
+Math.Lerp = Math.lerp;
 
 let Map = 
 [
@@ -39,7 +72,8 @@ let Map =
 	"X. . . . . . .X",
 	"XXXXXXXXXXXXXXX",
 ];
-
+const MAP_WIDTH = 10;
+const MAP_HEIGHT = 10;
 
 
 const DIR_NONE = 0;
@@ -61,21 +95,56 @@ function Sprite(StartPosition,ActorName)
 	this.Actor = Scene.root.find(ActorName);
 }
 
+
+var LastFaceRotation = 
+{
+	'Pitch':0,
+	'Yaw':0,
+	'Roll':0
+};
+
+function InitFace()
+{
+	const face = FaceTracking.face(0);
+	const OnNewFaceRotationX = function(Event)	{	LastFaceRotation.Pitch = Event.newValue;	};
+	const OnNewFaceRotationY = function(Event)	{	LastFaceRotation.Yaw = Event.newValue;	};
+	const OnNewFaceRotationZ = function(Event)	{	LastFaceRotation.Roll = Event.newValue;	};
+	face.cameraTransform.rotationX.monitor().subscribe( OnNewFaceRotationX );
+	face.cameraTransform.rotationY.monitor().subscribe( OnNewFaceRotationY );
+	face.cameraTransform.rotationZ.monitor().subscribe( OnNewFaceRotationZ );
+
+	Diagnostics.watch('Pitch',face.cameraTransform.rotationX);
+	Diagnostics.watch('Yaw',face.cameraTransform.rotationY);
+}
+InitFace();
+
 function GetFaceDirection()
 {
-	const face = FaceTracking.face(1);
+	const face = FaceTracking.face(0);
+
 	if ( !face.isTracked )
 	{
 		Pop.Debug("Face not tracking");
 		return DIR_NONE;
 	}
-	//Pop.Debug(face);
-	const faceTransform = face.cameraTransform;
-	const LastPitch = faceTransform.rotationX.pinLastValue();
-	const LastYaw = faceTransform.rotationY.pinLastValue();
-	const LastRoll = faceTransform.rotationZ.pinLastValue();
-	Pop.Debug("LastPitch=" + LastPitch + " LastYaw=" + LastYaw + " LastRoll=" + LastRoll);
 
+	const LastPitch = Math.RadToDeg( LastFaceRotation.Pitch );
+	const LastYaw = Math.RadToDeg( LastFaceRotation.Yaw );
+	
+	const UpPitch = -20;
+	const DownPitch = -5;
+	const LeftYaw = -5;
+	const RightYaw = 5;
+Pop.Debug(LastPitch);
+	if ( LastPitch < UpPitch )
+		return DIR_NORTH;
+	if ( LastPitch > DownPitch )
+		return DIR_SOUTH;
+	if ( LastYaw < LeftYaw )
+		return DIR_WEST;
+	if ( LastYaw > RightYaw )
+		return DIR_EAST;
+	
 	return DIR_NONE;
 }
 
@@ -87,7 +156,11 @@ function PacmanGame()
 	this.UpdateSprite = function(Sprite)
 	{
 		let NewPos = Math.Add2( Sprite.Position, DIR_DELTA[Sprite.Direction] );
-		//	todo: check collision
+
+		//	check collision
+		NewPos[0] = Math.clamp( 0, MAP_WIDTH, NewPos[0] );
+		NewPos[1] = Math.clamp( 0, MAP_HEIGHT, NewPos[1] );
+
 		Sprite.Position = NewPos;
 	}
 
@@ -119,10 +192,15 @@ function PacmanGame()
 			timeDriver.start();
 			*/
 
-			const WorldPos = Sprite.Position.map( x=>x*0.01 );
+			let x = Math.range( 0, MAP_WIDTH, Sprite.Position[0] );
+			let y = Math.range( 0, MAP_HEIGHT, Sprite.Position[1] );
+			x = Math.lerp( -0.1, 0.1, x );
+			y = Math.lerp( 0.1, -0.1, y );
 
-			const NewX = Sprite.Actor.transform.y.mul(0).add(WorldPos[0]).pinLastValue();
-			const NewY = Sprite.Actor.transform.y.mul(0).add(WorldPos[1]).pinLastValue();
+			//const NewX = Sprite.Actor.transform.y.mul(0).add(WorldPos[0]).pinLastValue();
+			//const NewY = Sprite.Actor.transform.y.mul(0).add(WorldPos[1]).pinLastValue();
+			const NewX = Reactive.val(x);
+			const NewY = Reactive.val(y);
 			//Pop.Debug(NewX);
 			//Pop.Debug(NewY);
 			//Pop.Debug(Sprite.Actor.transform);
@@ -162,4 +240,5 @@ function UpdateLoop()
 {
 	Game.Update();
 }
-const Timer = Time.setInterval( UpdateLoop, 1000/30 );
+const FramesPerSec = 10;
+const Timer = Time.setInterval( UpdateLoop, 1000/FramesPerSec );
