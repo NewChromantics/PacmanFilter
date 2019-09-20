@@ -63,17 +63,29 @@ Math.Lerp = Math.lerp;
 
 let Map = 
 [
-	"XXXXXXXXXXXXXXX",
-	"X. . . . . . .X",
-	"X. . . . . . .X",
-	"X. . . . . . .X",
-	"X. . . P . . .X",
-	"X. . . . . . .X",
-	"X. . . . . . .X",
-	"XXXXXXXXXXXXXXX",
+	"XXXXXXXXXXX",
+	"X         X",
+	"X XXX XXX X",
+	"X X     X X",
+	"X   X X   X",
+	"XXX X X XXX",
+	"X         X",
+	"X X XXX X X",
+	"X X X X X X",
+	"X X   X X X",
+	"X X  PX X X",
+	"X X X X X X",
+	"X X XXX X X",
+	"X         X",
+	"XXX X X XXX",
+	"X   X X   X",
+	"X X     X X",
+	"X XXX XXX X",
+	"X         X",
+	"XXXXXXXXXXX"
 ];
-const MAP_WIDTH = 10;
-const MAP_HEIGHT = 10;
+const MAP_WIDTH = 11;
+const MAP_HEIGHT = 20;
 
 
 const DIR_NONE = 0;
@@ -113,8 +125,8 @@ function InitFace()
 	face.cameraTransform.rotationY.monitor().subscribe( OnNewFaceRotationY );
 	face.cameraTransform.rotationZ.monitor().subscribe( OnNewFaceRotationZ );
 
-	Diagnostics.watch('Pitch',face.cameraTransform.rotationX);
-	Diagnostics.watch('Yaw',face.cameraTransform.rotationY);
+	//Diagnostics.watch('Pitch',face.cameraTransform.rotationX);
+	//Diagnostics.watch('Yaw',face.cameraTransform.rotationY);
 }
 InitFace();
 
@@ -131,19 +143,16 @@ function GetFaceDirection()
 	const LastPitch = Math.RadToDeg( LastFaceRotation.Pitch );
 	const LastYaw = Math.RadToDeg( LastFaceRotation.Yaw );
 	
-	const UpPitch = -20;
-	const DownPitch = -5;
-	const LeftYaw = -5;
-	const RightYaw = 5;
-Pop.Debug(LastPitch);
-	if ( LastPitch < UpPitch )
-		return DIR_NORTH;
-	if ( LastPitch > DownPitch )
-		return DIR_SOUTH;
-	if ( LastYaw < LeftYaw )
-		return DIR_WEST;
-	if ( LastYaw > RightYaw )
-		return DIR_EAST;
+	const UpPitch = -15;
+	const DownPitch = 1;
+	const LeftYaw = -10;
+	const RightYaw = 10;
+	//Pop.Debug("pitch="+LastPitch);
+	
+	if ( LastYaw < LeftYaw )		{	Pop.Debug("LastYaw="+LastYaw);	return DIR_WEST;	}
+	if ( LastYaw > RightYaw )		{	Pop.Debug("LastYaw="+LastYaw);	return DIR_EAST;	}
+	if ( LastPitch < UpPitch )		{	Pop.Debug("pitch="+LastPitch);	return DIR_NORTH;	}
+	if ( LastPitch > DownPitch )	{	Pop.Debug("pitch="+LastPitch);	return DIR_SOUTH;	}
 	
 	return DIR_NONE;
 }
@@ -160,7 +169,7 @@ function PacmanGame()
 		//	check collision
 		NewPos[0] = Math.clamp( 0, MAP_WIDTH, NewPos[0] );
 		NewPos[1] = Math.clamp( 0, MAP_HEIGHT, NewPos[1] );
-
+		
 		Sprite.Position = NewPos;
 	}
 
@@ -194,8 +203,10 @@ function PacmanGame()
 
 			let x = Math.range( 0, MAP_WIDTH, Sprite.Position[0] );
 			let y = Math.range( 0, MAP_HEIGHT, Sprite.Position[1] );
-			x = Math.lerp( -0.1, 0.1, x );
-			y = Math.lerp( 0.1, -0.1, y );
+			const WorldWidth = 1.00;
+			const WorldHeight = 2.0;
+			x = Math.lerp( -WorldWidth, WorldWidth, x );
+			y = Math.lerp( WorldHeight, -WorldHeight, y );
 
 			//const NewX = Sprite.Actor.transform.y.mul(0).add(WorldPos[0]).pinLastValue();
 			//const NewY = Sprite.Actor.transform.y.mul(0).add(WorldPos[1]).pinLastValue();
