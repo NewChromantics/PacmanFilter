@@ -61,32 +61,42 @@ Math.lerp = function(Min,Max,Time)
 }
 Math.Lerp = Math.lerp;
 
+String.prototype.replaceAt = function(index, replacement) 
+{
+    return this.substr(0, index) + replacement+ this.substr(index + replacement.length);
+}
+
 let Map = 
 [
 	"XXXXXXXXXXX",
-	"X         X",
-	"X XXX XXX X",
-	"X X     X X",
-	"X   X X   X",
-	"XXX X X XXX",
-	"X         X",
-	"X X XXX X X",
-	"X X X X X X",
-	"X X   X X X",
-	"X X  PX X X",
-	"X X X X X X",
-	"X X XXX X X",
-	"X         X",
-	"XXX X X XXX",
-	"X   X X   X",
-	"X X     X X",
-	"X XXX XXX X",
-	"X         X",
+	"X. . . . .X",
+	"X OOO OOO X",
+	"X O. . .O X",
+	"X. .O O. .X",
+	"XOO O O XXX",
+	"X. . P . .X",
+	"X O XXX O X",
+	"X.O.O O.O.X",
+	"X O   O O X",
+	"X O   O O X",
+	"X.O.O O.O.X",
+	"X O OOO O X",
+	"X. . . . .X",
+	"XOO O O OOX",
+	"X. .O O. .X",
+	"X.O     O X",
+	"X OOO OOO X",
+	"X. . . . PX",
 	"XXXXXXXXXXX"
 ];
-const MAP_WIDTH = 11;
-const MAP_HEIGHT = 20;
-
+const EnableCollisions = false;
+const MAP_WIDTH = Map[0].length;
+const MAP_HEIGHT = Map.length;
+const MAP_OWALL = 'X';
+const MAP_IWALL = EnableCollisions ? 'O' : '$';
+const MAP_PILL = '.';
+const MAP_PLAYER = 'P';
+const MAP_NONE = ' ';
 
 const DIR_NONE = 0;
 const DIR_NORTH = 1;
@@ -99,6 +109,40 @@ DIR_DELTA[DIR_NORTH] = [0,-1];
 DIR_DELTA[DIR_SOUTH] = [0,1];
 DIR_DELTA[DIR_EAST] = [1,0];
 DIR_DELTA[DIR_WEST] = [-1,0];
+
+function GetMapStartPos()
+{
+	for ( let y=0;	y<Map.length;	y++ )
+	{
+		const Row = Map[y];
+		for ( let x=0;	x<Row.length;	x++ )
+		{
+			const MapElement = Row[x];
+			if ( MapElement == MAP_PLAYER )
+				return [x,y];
+		}
+	}
+	return [1,1];
+}
+
+function IsWall(MapPosition)
+{
+	const x = MapPosition[0];
+	const y = MapPosition[1];
+	const Element = Map[y][x];
+	return Element == MAP_IWALL || Element == MAP_OWALL;
+}
+
+function PopPill(MapPosition)
+{
+	const x = MapPosition[0];
+	const y = MapPosition[1];
+	const Element = Map[y][x];
+	if ( Element != MAP_PILL )
+		return false;
+	Map[y].replaceAt(x,MAP_NONE);
+	return true;
+}
 
 function Sprite(StartPosition,ActorName)
 {
@@ -145,8 +189,8 @@ function GetFaceDirection()
 	
 	const UpPitch = -15;
 	const DownPitch = 1;
-	const LeftYaw = -10;
-	const RightYaw = 10;
+	const LeftYaw = -8;
+	const RightYaw = 8;
 	//Pop.Debug("pitch="+LastPitch);
 	
 	if ( LastYaw < LeftYaw )		{	Pop.Debug("LastYaw="+LastYaw);	return DIR_WEST;	}
@@ -157,19 +201,30 @@ function GetFaceDirection()
 	return DIR_NONE;
 }
 
+
+var Score = 0;
+function IncreaseScore()
+{
+	Scene.root.find('ScoreText');
+
+}
+
 function PacmanGame()
 {
 	//	init from map
-	this.Pacman = new Sprite( [4,4],'Actor_Pacman');
+	this.Pacman = new Sprite( GetMapStartPos(),'Actor_Pacman');
 
 	this.UpdateSprite = function(Sprite)
 	{
 		let NewPos = Math.Add2( Sprite.Position, DIR_DELTA[Sprite.Direction] );
 
-		//	check collision
-		NewPos[0] = Math.clamp( 0, MAP_WIDTH, NewPos[0] );
-		NewPos[1] = Math.clamp( 0, MAP_HEIGHT, NewPos[1] );
-		
+		//	move only if we didnt hit a wall
+		if ( IsWall(NewPos) )
+			return;
+
+		if ( PopPill(NewPos) )
+			IncreaseScore();
+			
 		Sprite.Position = NewPos;
 	}
 
@@ -203,7 +258,7 @@ function PacmanGame()
 
 			let x = Math.range( 0, MAP_WIDTH, Sprite.Position[0] );
 			let y = Math.range( 0, MAP_HEIGHT, Sprite.Position[1] );
-			const WorldWidth = 1.00;
+			const WorldWidth = 1.35;
 			const WorldHeight = 2.0;
 			x = Math.lerp( -WorldWidth, WorldWidth, x );
 			y = Math.lerp( WorldHeight, -WorldHeight, y );
